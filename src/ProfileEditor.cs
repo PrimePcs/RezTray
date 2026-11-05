@@ -138,6 +138,7 @@ namespace RezTray
             int index = _list.SelectedIndex;
             foreach (var key in _settings.Active.Where(a => a.Value == profile.Id).Select(a => a.Key).ToList())
                 _settings.Active.Remove(key);
+            _settings.Hotkeys.RemoveAll(h => h.Action == HotkeyBinding.Color && h.TargetId == profile.Id);
             _settings.Profiles.Remove(profile);
             _list.Items.Remove(profile);
             _list.SelectedIndex = Math.Min(index, _list.Items.Count - 1);

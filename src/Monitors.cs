@@ -33,6 +33,7 @@ namespace RezTray
         public DisplayMode Current;
         public DisplayMode Native;
         public List<AddedResolution> Added = new List<AddedResolution>();
+        public List<int> Rates = new List<int>();   // refresh rates at the current size, fastest first
 
         // The driver works in panel orientation; Windows swaps width and height when rotated.
         public int PanelWidth => Sideways ? Native.Height : Native.Width;
@@ -73,6 +74,13 @@ namespace RezTray
                     Sideways = dm.dmDisplayOrientation == 1 || dm.dmDisplayOrientation == 3,
                     Current = ToMode(dm),
                 };
+
+                monitor.Rates = modes
+                    .Where(m => m.Width == monitor.Current.Width && m.Height == monitor.Current.Height)
+                    .Select(m => m.Hz)
+                    .Distinct()
+                    .OrderByDescending(hz => hz)
+                    .ToList();
 
                 var drivers = NvApi.GetCustomDisplays(nv.DisplayId);
                 var saved = new HashSet<(int, int)>(drivers.Select(d =>

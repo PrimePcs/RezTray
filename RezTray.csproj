@@ -10,7 +10,7 @@
     <RootNamespace>RezTray</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>assets\app.ico</ApplicationIcon>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Product>RezTray</Product>
     <Description>Tray app that creates and switches NVIDIA custom resolutions</Description>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>

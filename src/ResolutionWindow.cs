@@ -15,6 +15,7 @@ namespace RezTray
         private readonly Label _hint;
         private readonly Button _create, _delete;
         private readonly ListBox _added;
+        private ComboBox _imported;
 
         public ResolutionWindow(Monitor preferred) : base("Create resolution", 420, 470)
         {
@@ -53,6 +54,32 @@ namespace RezTray
         public event EventHandler ResolutionsChanged;
 
         private Monitor Selected => (Monitor)_monitor.SelectedItem;
+
+        /// <summary>Offers sizes from an imported file. They only fill in the boxes: each one
+        /// still goes through the normal test before anything is saved.</summary>
+        public void ShowImported(List<DisplayMode> modes)
+        {
+            if (_imported == null)
+            {
+                ClientSize = new System.Drawing.Size(ClientSize.Width, ClientSize.Height + S(66));
+                AddLabel("Imported: pick one to fill in the boxes", 20, 466, 380, dim: true);
+                _imported = AddCombo(20, 488, 380);
+                _imported.SelectedIndexChanged += (s, e) => FillFromImported();
+            }
+
+            _imported.Items.Clear();
+            _imported.Items.AddRange(modes.Cast<object>().ToArray());
+        }
+
+        private void FillFromImported()
+        {
+            if (!(_imported.SelectedItem is DisplayMode mode) || Selected == null) return;
+            _width.Text = mode.Width.ToString();
+            _height.Text = mode.Height.ToString();
+
+            // Someone else's monitor may run faster than this one, so never start above its limit.
+            _hz.Text = Math.Min(mode.Hz, Selected.Native.Hz).ToString();
+        }
 
         private void ReloadMonitors(string key)
         {

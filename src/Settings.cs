@@ -31,10 +31,80 @@ namespace RezTray
         public override string ToString() => Name;
     }
 
+    /// <summary>A key combination and what it does.</summary>
+    [DataContract]
+    internal sealed class HotkeyBinding
+    {
+        public const string Resolution = "resolution", Native = "native", Color = "color", SetupAction = "setup";
+
+        [DataMember] public int Modifiers;
+        [DataMember] public int Key;
+        [DataMember] public string Action;
+        [DataMember] public string MonitorKey;
+        [DataMember] public int Width, Height, Hz;
+        [DataMember] public string TargetId;       // color profile or setup id
+        [DataMember] public string Label;
+
+        public string Keys => Hotkey.Format(Modifiers, (System.Windows.Forms.Keys)Key);
+
+        public HotkeyBinding WithKeys(int modifiers, System.Windows.Forms.Keys key)
+        {
+            var copy = (HotkeyBinding)MemberwiseClone();
+            copy.Modifiers = modifiers;
+            copy.Key = (int)key;
+            return copy;
+        }
+
+        public override string ToString() => Key == 0 ? Label : $"{Keys}   →   {Label}";
+    }
+
+    /// <summary>One monitor's part of a saved setup.</summary>
+    [DataContract]
+    internal sealed class SetupMonitor
+    {
+        [DataMember] public string MonitorKey;
+        [DataMember] public string MonitorName;
+        [DataMember] public int Width, Height, Hz;
+        [DataMember] public string ProfileId;
+
+        public DisplayMode Mode => new DisplayMode { Width = Width, Height = Height, Hz = Hz };
+    }
+
+    /// <summary>A named resolution and color for every monitor.</summary>
+    [DataContract]
+    internal sealed class Setup
+    {
+        [DataMember] public string Id = Guid.NewGuid().ToString("N");
+        [DataMember] public string Name;
+        [DataMember] public List<SetupMonitor> Monitors = new List<SetupMonitor>();
+
+        public static Setup Capture(string name, IEnumerable<Monitor> monitors, AppSettings settings) => new Setup
+        {
+            Name = name,
+            Monitors = monitors.Select(m => new SetupMonitor
+            {
+                MonitorKey = m.Key,
+                MonitorName = m.Name,
+                Width = m.Current.Width,
+                Height = m.Current.Height,
+                Hz = m.Current.Hz,
+                ProfileId = settings.ActiveProfile(m).Id,
+            }).ToList(),
+        };
+
+        public override string ToString() => Name;
+    }
+
     [DataContract]
     internal sealed class AppSettings
     {
         [DataMember] public List<ColorProfile> Profiles = new List<ColorProfile>();
+        [DataMember] public List<HotkeyBinding> Hotkeys = new List<HotkeyBinding>();
+        [DataMember] public List<Setup> Setups = new List<Setup>();
+
+        // Named this way round so that a settings file from 1.0, which lacks it, leaves alerts on.
+        [DataMember] public bool UpdateAlertsOff;
+        [DataMember] public string LastAlertedVersion;
 
         /// <summary>Monitor key to profile id. No entry means RezTray leaves that monitor alone.</summary>
         [DataMember] public Dictionary<string, string> Active = new Dictionary<string, string>();
@@ -61,7 +131,7 @@ namespace RezTray
             {
                 if (File.Exists(FilePath))
                     using (var stream = File.OpenRead(FilePath))
-                        settings = (AppSettings)Serializer.ReadObject(stream);
+                        settings = Read(stream);
             }
             catch (Exception e) when (e is IOException || e is SerializationException || e is UnauthorizedAccessException)
             {
@@ -69,8 +139,18 @@ namespace RezTray
                 try { File.Copy(FilePath, FilePath + ".broken", true); } catch (IOException) { }
             }
 
+            return Normalized(settings);
+        }
+
+        internal static AppSettings Read(Stream stream) => (AppSettings)Serializer.ReadObject(stream);
+
+        /// <summary>The serializer skips initializers, so fields a file lacks arrive as null.</summary>
+        internal static AppSettings Normalized(AppSettings settings)
+        {
             settings = settings ?? new AppSettings();
             settings.Profiles = settings.Profiles ?? new List<ColorProfile>();
+            settings.Hotkeys = settings.Hotkeys ?? new List<HotkeyBinding>();
+            settings.Setups = settings.Setups ?? new List<Setup>();
             settings.Active = settings.Active ?? new Dictionary<string, string>();
             settings.EnsureDefaults();
             return settings;
@@ -88,13 +168,18 @@ namespace RezTray
             }
         }
 
+        internal void Write(Stream stream)
+        {
+            using (var writer = JsonReaderWriterFactory.CreateJsonWriter(stream, Encoding.UTF8, false, true))
+                Serializer.WriteObject(writer, this);
+        }
+
         public void Save()
         {
             Directory.CreateDirectory(Folder);
             string temp = FilePath + ".tmp";
             using (var stream = File.Create(temp))
-            using (var writer = JsonReaderWriterFactory.CreateJsonWriter(stream, Encoding.UTF8, false, true))
-                Serializer.WriteObject(writer, this);
+                Write(stream);
 
             if (File.Exists(FilePath)) File.Replace(temp, FilePath, null);
             else File.Move(temp, FilePath);
