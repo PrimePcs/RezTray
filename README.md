@@ -4,7 +4,9 @@ Tray app for NVIDIA GPUs. It lives in the up arrow next to the clock. Left or ri
 
 ## Download
 
-Get `RezTray-share.zip` from the [latest release](https://github.com/PrimePcs/RezTray/releases/latest), unzip it and run `RezTray.exe`. There is nothing to install.
+Get `RezTray-Setup.exe` from the [latest release](https://github.com/PrimePcs/RezTray/releases/latest) and run it. RezTray goes in your Start menu and your Windows Apps list, and it installs without admin rights. To update, run the newest setup over the old one. To remove it, use Settings, Apps, Installed apps.
+
+Prefer no installer? Get `RezTray-share.zip` instead, unzip it and run `RezTray.exe`.
 
 You need Windows 10 or 11 (64-bit) and an NVIDIA GPU.
 
@@ -30,7 +32,7 @@ In a game running in exclusive fullscreen, a resolution hotkey changes the deskt
 
 On keyboards with an AltGr key, Windows treats AltGr as Ctrl+Alt, so Ctrl+Alt hotkeys can block characters such as `@` on some layouts. If that happens, use an F key or Ctrl+Shift+Alt instead.
 
-Color profiles, hotkeys and setups are saved in `%APPDATA%\RezTray\settings.json`. Resolutions are saved in the NVIDIA driver.
+Color profiles, hotkeys and setups are saved in `%APPDATA%\RezTray\settings.json`. Resolutions are saved in the NVIDIA driver. Uninstalling leaves both in place, so a reinstall picks up where you left off.
 
 ## Build
 
@@ -39,5 +41,11 @@ dotnet build -c Release
 ```
 
 Output is `bin\Release\net48\RezTray.exe`. It needs nothing beyond Windows 10/11 and an NVIDIA driver.
+
+To build the installer, install [Inno Setup 6](https://jrsoftware.org/isinfo.php), then run this. It writes `dist\RezTray-Setup.exe`.
+
+```bash
+ISCC.exe installer\RezTray.iss
+```
 
 `RezTray.exe --dump report.txt` writes what the app sees without changing anything.

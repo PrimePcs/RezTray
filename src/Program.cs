@@ -27,7 +27,11 @@ namespace RezTray
 #endif
             using (var mutex = new Mutex(true, InstanceName, out bool first))
             {
-                if (!first) return;
+                if (!first)
+                {
+                    InstanceSignal.Send();
+                    return;
+                }
 
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
@@ -43,7 +47,10 @@ namespace RezTray
                     return;
                 }
 #endif
-                Application.Run(new TrayApp());
+#if !DEBUG
+                AutoStart.KeepPathCurrent();
+#endif
+                Application.Run(new TrayApp(announce: !args.Contains("--startup")));
             }
         }
 
@@ -107,6 +114,7 @@ namespace RezTray
             TestSharing();
             TestUpdates();
             TestMonitors();
+            TestInstanceSignal();
             Log.AppendLine($"{_passed} passed, {_failed} failed");
             return Log.ToString();
         }
@@ -247,11 +255,24 @@ namespace RezTray
             Check("older tag is not newer", !Updates.IsNewer("v1.0.0", current));
             Check("10 beats 9", Updates.IsNewer("v1.10.0", new Version(1, 9, 0, 0)));
             Check("bad tag is not newer", !Updates.IsNewer("latest", current) && !Updates.IsNewer(null, current));
-            Check("app reports 1.1.0", Updates.Current.ToString(3) == "1.1.0");
+            Check("app reports 1.2.0", Updates.Current.ToString(3) == "1.2.0");
 
             string tag = Updates.LatestTagAsync().GetAwaiter().GetResult();
             Log.AppendLine($"      GitHub says the latest is {tag ?? "(unreachable)"}");
             Check("GitHub answers", tag != null);
+        }
+
+        private static void TestInstanceSignal()
+        {
+            int received = 0;
+            using (new InstanceSignal(() => Interlocked.Increment(ref received)))
+            {
+                InstanceSignal.Send();
+                for (int i = 0; i < 100 && received == 0; i++) Thread.Sleep(10);
+                Check("second launch reaches the running copy", received == 1);
+            }
+            InstanceSignal.Send();   // nothing listening: this must not throw
+            Check("second launch copes with no running copy", received == 1);
         }
 
         private static void TestMonitors()

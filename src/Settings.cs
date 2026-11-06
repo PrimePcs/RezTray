@@ -202,9 +202,22 @@ namespace RezTray
             {
                 using (var key = Registry.CurrentUser.CreateSubKey(RunKey))
                 {
-                    if (value) key.SetValue(ValueName, $"\"{System.Windows.Forms.Application.ExecutablePath}\"");
+                    if (value) key.SetValue(ValueName, Command);
                     else key.DeleteValue(ValueName, false);
                 }
+            }
+        }
+
+        // --startup keeps the "RezTray is running" message from appearing at every sign-in.
+        private static string Command => $"\"{System.Windows.Forms.Application.ExecutablePath}\" --startup";
+
+        /// <summary>If the user turned this on and the app has since moved, follow it.</summary>
+        public static void KeepPathCurrent()
+        {
+            using (var key = Registry.CurrentUser.CreateSubKey(RunKey))
+            {
+                if (key.GetValue(ValueName) is string current && current != Command)
+                    key.SetValue(ValueName, Command);
             }
         }
     }

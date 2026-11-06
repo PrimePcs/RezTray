@@ -22,6 +22,7 @@ namespace RezTray
         private readonly Timer _reapply = new Timer { Interval = 800 };
         private readonly Timer _updateTimer = new Timer { Interval = FirstUpdateCheckMs };
         private readonly HotkeyManager _hotkeys = new HotkeyManager();
+        private readonly InstanceSignal _instanceSignal;
         private readonly AppSettings _settings = AppSettings.Load();
         private List<Monitor> _monitors = new List<Monitor>();
         private ResolutionWindow _resolutionWindow;
@@ -31,7 +32,9 @@ namespace RezTray
         private string _availableUpdate;
         private bool _balloonOpensUpdate;
 
-        public TrayApp()
+        /// <param name="announce">Says where the app went, for a launch from the Start menu,
+        /// because the icon usually sits behind the up arrow.</param>
+        public TrayApp(bool announce = false)
         {
             _ui = new Control();
             _ = _ui.Handle;   // SystemEvents arrive on another thread; this marshals them back
@@ -55,8 +58,12 @@ namespace RezTray
                 if (_balloonOpensUpdate) OpenReleasePage();
             };
 
+            _instanceSignal = new InstanceSignal(() => OnUi(ShowMenuAtCursor));
+
             if (!NvApi.Initialize())
                 Warn("The NVIDIA driver could not be reached, so there is nothing to switch.");
+            else if (announce)
+                Tell("RezTray is running. Find it in the up arrow next to the clock.");
 
             _monitors = Monitors.Read();
             UpdateTooltip();
@@ -533,6 +540,7 @@ namespace RezTray
                 SystemEvents.PowerModeChanged -= OnPowerChanged;
                 SystemEvents.UserPreferenceChanged -= OnThemeChanged;
                 _hotkeys.Dispose();
+                _instanceSignal.Dispose();
                 _reapply.Dispose();
                 _updateTimer.Dispose();
                 _icon.Visible = false;
